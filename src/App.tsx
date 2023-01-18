@@ -1,18 +1,20 @@
+import axios from "axios";
 import React, { useState } from "react";
 import lingbianDuanList from "./test/lingbian-duan.json";
-
-
+// @ts-ignore
+import tokml from "tokml";
 type Props = {};
 
-type data = {
-  duanNumber: string;
-  dihao: number[];
-};
+// type data = {
+//   duanNumber: string;
+//   dihao: number[];
+// };
 
 export default function App({}: Props) {
-  const [lingbianDuan, setLingbianDuan] = useState<string>("鎮林段");
+  const [lingbianDuan, setLingbianDuan] = useState<string>("");
   const [inputBox, setInputBox] = useState<number[]>([0]);
-  const [data, setData] = useState<data>({ duanNumber: "", dihao: [0] });
+  // const [data, setData] = useState<data>({ duanNumber: "", dihao: [0] });
+  const [dataType, setDataType] = useState<string>("");
 
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>): void {
     setLingbianDuan(event.target.value);
@@ -34,9 +36,45 @@ export default function App({}: Props) {
     setInputBox(newInputBox);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setData({ duanNumber: lingbianDuan, dihao: inputBox });
+    getData(lingbianDuan, inputBox);
+  }
+
+  async function getData(duanNumber: string, dihao: number[]) {
+    const config = {
+      method: "get",
+      url: `http://localhost:3000?filename=${duanNumber}&dihao=${dihao.toString()}`,
+      headers: {},
+    };
+
+    axios(config)
+      .then(function (response: any) {
+        console.log(JSON.stringify(response.data));
+        const data = response.data;
+        // download json if dataType is json
+        if (dataType === "json") {
+          const element = document.createElement("a");
+          const file = new Blob([JSON.stringify(data)], { type: "text/plain" });
+          element.href = URL.createObjectURL(file);
+          element.download = "data.json";
+          document.body.appendChild(element); // Required for this to work in FireFox
+          element.click();
+        }
+        // download kml if dataType is kml
+        else if (dataType === "kml") {
+          const kml = tokml(data);
+          const element = document.createElement("a");
+          const file = new Blob([kml], { type: "text/plain" });
+          element.href = URL.createObjectURL(file);
+          element.download = "data.kml";
+          document.body.appendChild(element); // Required for this to work in FireFox
+          element.click();
+        }
+      })
+      .catch(function (error: any) {
+        console.log(error);
+      });
   }
 
   function handleRemoveNumber(
@@ -46,8 +84,6 @@ export default function App({}: Props) {
     newInputBox.pop();
     setInputBox(newInputBox);
   }
-
-
 
   return (
     <>
@@ -67,16 +103,17 @@ export default function App({}: Props) {
               <input type="number" onChange={handleChangeNumber(index)} />
             </div>
           ))}
+          <select onChange={(e) => setDataType(e.target.value)}>
+            <option value="json">JSON</option>
+            <option value="kml">KML</option>
+          </select>
           <button type="submit">Submit</button>
         </form>
         <button onClick={handleAddNumber}>+</button>
         <button onClick={handleRemoveNumber}>-</button>
       </div>
-      <div>
-        <p>{data.duanNumber}</p>
-        <p>{data.dihao}</p>
-      </div>
-      <div>{converted}</div>
+      <button>Download JSON</button>
+      <button>Download KML</button>
     </>
   );
 }
